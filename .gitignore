@@ -134,5 +134,6 @@ dmypy.json
 *.h5
 .vscode
 
-/output_CoarseNet
-/testData
+./ClassifyNet/output_CoarseNet/
+./ClassifyNet/testData/
+./ClassifyNet/inputData/
