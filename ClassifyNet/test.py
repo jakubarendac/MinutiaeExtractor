@@ -21,7 +21,7 @@ from MinutiaeNet_utils import FastEnhanceTexture, get_maps_STFT, fuse_nms, draw_
 
 coarseNetPath = '../MinutiaeNet/Models/CoarseNet.h5'
 fineNetPath = '../MinutiaeNet/Models/FineNet.h5'
-dataPath = './testData/'
+dataPath = '../MinutiaeNet/Dataset/CoarseNet_test/'
 output_dir = 'output_CoarseNet'
 
 # Read image
@@ -45,7 +45,7 @@ fineNet.compile(loss='categorical_crossentropy',
 
 # Predict images
 for i in xrange(0, len(imgFolder)):
-    image = misc.imread(dataPath + 'img_files/' + imgFolder[i] + '.png', mode='L')
+    image = misc.imread(dataPath + 'img_files/' + imgFolder[i] + '.bmp', mode='L')
     
     imgSize = image.shape
     imgSize = np.array(imgSize, dtype=np.int32) // 8 * 8
@@ -102,18 +102,19 @@ for i in xrange(0, len(imgFolder)):
                 # Extract patch from image
                 x_begin = int(mnt_nms[idx_minu, 1]) - patch_minu_radio
                 y_begin = int(mnt_nms[idx_minu, 0]) - patch_minu_radio
-                patch_minu = original_image[x_begin:x_begin + 2 * patch_minu_radio,
+                patch_minu = originalImage[x_begin:x_begin + 2 * patch_minu_radio,
                              y_begin:y_begin + 2 * patch_minu_radio]
 
                 patch_minu = cv2.resize(patch_minu, dsize=(224, 224), interpolation=cv2.INTER_NEAREST)
-
+                print('x ->', x_begin, mnt_nms[idx_minu, 1], 'y ->', y_begin, mnt_nms[idx_minu, 0])
+                cv2.imshow('minu', patch_minu)
+                cv2.waitKey()
                 ret = np.empty((patch_minu.shape[0], patch_minu.shape[1], 3), dtype=np.uint8)
                 ret[:, :, 0] = patch_minu
                 ret[:, :, 1] = patch_minu
                 ret[:, :, 2] = patch_minu
                 patch_minu = ret
                 patch_minu = np.expand_dims(patch_minu, axis=0)
-
                 # Can use class as hard decision
                 # 0: minu  1: non-minu
                 # [class_Minutiae] = np.argmax(model_FineNet.predict(patch_minu), axis=1)
@@ -122,13 +123,12 @@ for i in xrange(0, len(imgFolder)):
                 #     mnt_refined.append(mnt_nms[idx_minu,:])
 
                 # Use soft decision: merge FineNet score with CoarseNet score
-                [isMinutiaeProb] = model_FineNet.predict(patch_minu)
+                [isMinutiaeProb] = fineNet.predict(patch_minu)
                 isMinutiaeProb = isMinutiaeProb[0]
                 # print isMinutiaeProb
                 tmp_mnt = mnt_nms[idx_minu, :].copy()
                 tmp_mnt[3] = (4*tmp_mnt[3] + isMinutiaeProb) / 5
                 mnt_refined.append(tmp_mnt)
-
             except:
                 mnt_refined.append(mnt_nms[idx_minu, :])
     
@@ -144,7 +144,7 @@ for i in xrange(0, len(imgFolder)):
     show_orientation_field(originalImage, dirMap + np.pi, mask=final_mask, fname=None)
 
     fuse_minu_orientation(dirMap, mnt_nms, mode=3)
-
+    print(mnt_nms)
     #time_afterpost = time()
     mnt_writer(mnt_nms, imgFolder[i], imgSize, "%s/mnt_results/%s.mnt"%(output_dir, imgFolder[i]))
     draw_minutiae(originalImage, mnt_nms, "%s/%s_minu.png"%(output_dir, imgFolder[i]),saveimage=True)
